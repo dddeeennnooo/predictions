@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MDS Stream Portal</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <link href="css/style.css" rel="stylesheet">
+
+  <style>
+      /* --- Styly Přehrávače --- */
+      .vjs-default-skin { color: white; }
+      
+      #offlineOverlay {
+          position: absolute;
+          top: 0; left: 0; width: 100%; height: 100%;
+          background-color: #000; color: white;
+          z-index: 20; 
+          display: flex; flex-direction: column;
+          justify-content: center; align-items: center;
+          border-radius: 4px;
+      }
+      
+      .loading-spinner {
+          border: 4px solid #f3f3f3; border-top: 4px solid #0d6efd;
+          border-radius: 50%; width: 40px; height: 40px;
+          animation: spin 1s linear infinite; margin-bottom: 20px;
+          display: none;
+      }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      .quality-btn.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+
+    /* --- Broadcaster styles --- */
+      .broadcast-preview {
+          width: 100%;
+          background: #000;
+          border-radius: 4px;
+          overflow: hidden;
+          position: relative;
+          /* Poměr stran 16:9 pro kontejner */
+          aspect-ratio: 16/9; 
+          margin-bottom: 1rem;
+      }
+
+      /* Skryjeme raw video, zobrazíme jen canvas */
+      #localVideo { display: none; }
+      
+      /* Canvas musí být responzivní */
+      #modifiedVideo {
+          width: 100%;
+          height: 100%;
+          object-fit: contain; /* Aby se obraz nedeformoval */
+      }
+  </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <div class="d-flex align-items-center">
+                <a href="index.html" id="navIndexBtn" class="nav-btn">Index</a>
+                <a href="player.html" id="navPlayerBtn" class="nav-btn">Player</a>
+                <span class="navbar-brand mb-0 h1 ms-3">🎥 MDS Stream Portal</span>
+            </div>
+            <div class="d-flex align-items-center">
+                <button id="themeToggle" class="btn btn-outline-light btn-sm" aria-pressed="false" title="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+  <div class="container pb-5">
+    <div class="blocks">
+      <!-- Block 1: Live Stream -->
+      <div class="block" id="block-live" role="button" tabindex="0">
+        <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                	<h5 class="mb-0 live-title"><span id="liveIndicator" class="live-indicator">🔴</span>Live Stream</h5>
+            	</div>
+            <div class="card-body p-0">
+                <div class="video-container position-relative">
+                    <div id="offlineOverlay">
+                        <div id="loadingSpinner" class="loading-spinner"></div>
+                        <h3 id="overlayTitle" class="h5">Stream is not active</h3>
+                        <p id="overlayDesc" class="small text-muted">Waiting for presenters to connect...</p>
+                    </div>
+
+                    <video id="videoPlayer" class="video-js vjs-default-skin vjs-big-play-centered vjs-fluid" controls preload="auto"></video>
+
+                    <div class="quality-float">
+                        <div class="d-flex align-items-center">
+                            <span class="quality-label">Quality</span>
+                            <div class="btn-group">
+                                <button id="qualityLabelBtn" type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Auto</button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item active" href="#" data-quality-item data-mode="auto">Auto</a></li>
+                                    <li><a class="dropdown-item" href="#" data-quality-item data-mode="_src">720p</a></li>
+                                    <li><a class="dropdown-item" href="#" data-quality-item data-mode="_mid">480p</a></li>
+                                    <li><a class="dropdown-item" href="#" data-quality-item data-mode="_low">240p</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+      </div>
+
+      <!-- Block 2: Currently streaming -->
+      <div class="block" id="block-presenters" role="button" tabindex="0">
+        <div class="card shadow-sm mb-4 h-100">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Currently streaming</span>
+                <span class="badge bg-light text-primary" id="presenterCount">0</span>
+            </div>
+            <ul id="presentersList" class="list-group list-group-flush"></ul>
+            <div id="noPresentersMsg" class="card-body text-muted text-center py-4">No one is streaming yet.</div>
+        </div>
+      </div>
+
+      <!-- Block 3: Broadcast your camera -->
+      <div class="block" id="block-broadcast" role="button" tabindex="0">
+        <div class="card shadow-sm h-100">
+            <div class="card-header text-dark fw-bold">📡 Broadcast your camera</div>
+            <div class="card-body">
+                <div class="broadcast-preview">
+                    <video id="localVideo" autoplay muted playsinline></video>
+                    <canvas id="modifiedVideo"></canvas>
+                </div>
+
+                <p class="small text-muted mb-2"><span class="id-label">ID:</span> <span id="clientIdSpan" class="fw-bold">(not connected)</span></p>
+
+                <div class="row g-2">
+                    <div class="col-12 col-sm-8">
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="text" id="nameInput" class="form-control form-control-sm flex-grow-1" placeholder="Your name">
+                            <input type="password" id="authKeyInput" class="form-control form-control-sm flex-grow-1" placeholder="Authorization key">
+                        </div>
+                        <div class="d-flex gap-2 mt-2">
+                            <button id="startBtn" class="btn btn-sm">Start Broadcast</button>
+                            <button id="stopBtn" class="btn btn-sm" disabled>Stop</button>
+                            <button id="muteBtn" class="btn btn-sm" disabled>Mute Microphone</button>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-4">
+                        <!-- Right column intentionally left empty for balance -->
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+
+    <script>
+    const player = videojs('videoPlayer', { autoplay: 'muted', controls: true, fluid: true, liveui: true });
+    const offlineOverlay = document.getElementById('offlineOverlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayDesc = document.getElementById('overlayDesc');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const listEl = document.getElementById('presentersList');
+    const noMsgEl = document.getElementById('noPresentersMsg');
+    const countEl = document.getElementById('presenterCount');
+
+    let isStreamActive = false; 
+    let checkFileInterval = null;
+    let currentMode = 'auto'; 
+
+    // Expose a global changeQuality while using an internal name for clarity
+    function changeQuality(mode) {
+        if (!isStreamActive) return;
+        currentMode = mode;
+
+        // update label and active state
+        const labelBtn = document.getElementById('qualityLabelBtn');
+        const labelMap = { 'auto': 'Auto', '_src': 'High (720p)', '_mid': 'Medium (480p)', '_low': 'Low (240p)' };
+        if (labelBtn) labelBtn.textContent = labelMap[mode] || mode;
+
+        document.querySelectorAll('[data-quality-item]').forEach(el => el.classList.remove('active'));
+        const activeItem = document.querySelector('[data-quality-item][data-mode="' + mode + '"]');
+        if (activeItem) activeItem.classList.add('active');
+
+        const newSource = (mode === 'auto') ? '/hls/stream.m3u8' : '/hls/stream' + mode + '/index.m3u8';
+        player.src({ type: 'application/x-mpegURL', src: newSource });
+        player.play().catch(() => {});
+    }
+    window.changeQuality = changeQuality;
+
+    async function waitForM3u8(url) {
+        setOverlayState("loading");
+        return new Promise((resolve) => {
+            if (checkFileInterval) clearInterval(checkFileInterval);
+            checkFileInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(url, { method: 'HEAD' });
+                    if (response.ok) { clearInterval(checkFileInterval); resolve(true); }
+                } catch (e) {}
+            }, 1000);
+        });
+    }
+
+    function setOverlayState(state) {
+        offlineOverlay.style.display = 'flex';
+        if (state === 'offline') {
+            loadingSpinner.style.display = 'none';
+            overlayTitle.innerText = "Stream is not active";
+            overlayDesc.innerText = "Waiting for presenters to connect...";
+        } else if (state === 'loading') {
+            loadingSpinner.style.display = 'block';
+            overlayTitle.innerText = "Preparing stream...";
+            overlayDesc.innerText = "The stream is being processed, one moment.";
+        }
+    }
+
+    async function fetchPresenters() {
+      try {
+        const res = await fetch('/api/presenters');
+        if (!res.ok) return;
+        const data = await res.json();
+        const currentlyBroadcasting = data.length > 0;
+        const muteIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-mic-mute-fill text-danger ms-2" viewBox="0 0 16 16"><path d="M13 8c0 .564-.094 1.107-.266 1.613l-.814-.814A4.02 4.02 0 0 0 12 8V7a.5.5 0 0 1 1 0v1.0zM8 0a5 5 0 0 0-5 5v1.869l.293.293A5 5 0 0 0 8 0zm0 13.5a5.5 5.5 0 0 1-5.465-4.995L.753 10.285a7 7 0 0 0 13.91 0l-1.783-1.783A5.5 5.5 0 0 1 8 13.5z"/><path d="M9 9.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5z"/><path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z"/><path d="M10.15 13.614a6.955 6.955 0 0 0 2.21-2.062l-.84-.84a6.002 6.002 0 0 1-1.37 2.902zM1.646 2.354l.582.583A6.96 6.96 0 0 0 .753 8.715l1.783 1.783A5.466 5.466 0 0 1 3.293 7.169l1.636 1.636A4.015 4.015 0 0 0 8 12c1.074 0 2.05-.415 2.776-1.09l3.578 3.578a.5.5 0 0 0 .708-.708L2.354 1.646a.5.5 0 0 0-.708.708z"/></svg>`;
+
+        listEl.innerHTML = '';
+        countEl.innerText = data.length;
+
+                const liveIndicator = document.getElementById('liveIndicator');
+                if (!currentlyBroadcasting) {
+                    noMsgEl.style.display = 'block';
+                    if (liveIndicator) liveIndicator.classList.remove('active');
+                } else {
+                    noMsgEl.style.display = 'none';
+                    if (liveIndicator) liveIndicator.classList.add('active');
+          data.forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `<div>${p.name}${p.isMuted ? muteIconSvg : ''}</div><span class="badge bg-success rounded-pill">LIVE</span>`;
+            listEl.appendChild(li);
+          });
+        }
+
+        if (currentlyBroadcasting) {
+            if (!isStreamActive) {
+                isStreamActive = true; 
+                const targetSrc = '/hls/stream.m3u8';
+                await waitForM3u8(targetSrc);
+                await new Promise(r => setTimeout(r, 3000));
+                
+                offlineOverlay.style.display = 'none';
+                document.querySelectorAll('[data-quality-item]').forEach(el => el.classList.remove('active'));
+                const first = document.querySelector('[data-quality-item][data-mode="auto"]');
+                if (first) first.classList.add('active');
+                const qbtn = document.getElementById('qualityLabelBtn'); if (qbtn) qbtn.innerText = 'Auto';
+
+                player.reset();
+                player.src({ type: 'application/x-mpegURL', src: targetSrc });
+                player.play().catch(() => {});
+            }
+        } else {
+            setOverlayState('offline');
+            if (isStreamActive) {
+                player.pause(); player.reset(); isStreamActive = false;
+                if (checkFileInterval) clearInterval(checkFileInterval);
+            }
+        }
+      } catch (e) { console.error('API Error:', e); }
+    }
+
+    // Attach delegated click handlers for quality items (removed inline onclick)
+    document.addEventListener('click', (ev) => {
+        const target = ev.target.closest && ev.target.closest('[data-quality-item]');
+        if (!target) return;
+        ev.preventDefault();
+        const mode = target.dataset.mode;
+        changeQuality(mode);
+    });
+
+    setInterval(fetchPresenters, 2000);
+    fetchPresenters();
+  </script>
+
+    <script>
+        (function(){
+            const THEME_KEY = 'mds_theme';
+            const btn = document.getElementById('themeToggle');
+            function applyTheme(t){
+                const dark = (t === 'dark');
+                document.documentElement.classList.toggle('dark', dark);
+                document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+                if (btn) { btn.innerText = dark ? '☀️' : '🌙'; btn.setAttribute('aria-pressed', dark); }
+            }
+            function loadTheme(){
+                const saved = localStorage.getItem(THEME_KEY);
+                if (saved) { applyTheme(saved); return; }
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                applyTheme(prefersDark ? 'dark' : 'light');
+            }
+            if (btn) btn.addEventListener('click', ()=>{
+                const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                const next = current === 'dark' ? 'light' : 'dark';
+                localStorage.setItem(THEME_KEY, next);
+                applyTheme(next);
+            });
+            loadTheme();
+
+            // set active nav button based on URL
+            try{
+              const path = window.location.pathname.split('/').pop();
+              const idx = document.getElementById('navIndexBtn');
+              const ply = document.getElementById('navPlayerBtn');
+              if (path === 'player.html') { if (ply) ply.classList.add('nav-btn--active'); }
+              else { if (idx) idx.classList.add('nav-btn--active'); }
+            }catch(e){}
+            
+                        // Dashboard block toggles: clicking a block expands it and minimizes others
+                        function resetBlocks(){
+                            document.querySelectorAll('.block').forEach(b=>{ b.classList.remove('expanded'); b.classList.remove('minimized'); });
+                        }
+                        function expandBlock(el){
+                            document.querySelectorAll('.block').forEach(b=>{ if (b!==el) { b.classList.add('minimized'); b.classList.remove('expanded'); } else { b.classList.add('expanded'); b.classList.remove('minimized'); } });
+                        }
+                        document.querySelectorAll('.block').forEach(b=>{
+                            b.addEventListener('click', (e)=>{
+                                // If this is the broadcast block, ignore clicks originating from interactive controls
+                                if (b.id === 'block-broadcast'){
+                                    if (e.target.closest('input, button, textarea, select, a, label, .form-control, .dropdown, .btn, .form-check-input, .form-check-label')){
+                                        return; // don't toggle when interacting with form controls
+                                    }
+                                }
+                                if (b.classList.contains('expanded')) { resetBlocks(); } else { expandBlock(b); }
+                            });
+                            b.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.click(); } });
+                        });
+        })();
+    </script>
+
+  <script src="js/scripts.js"></script>
+</body>
+</html>

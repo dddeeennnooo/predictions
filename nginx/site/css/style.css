@@ -1,0 +1,262 @@
+:root{
+  --bg: #f5f7fb;
+  --text: #212529;
+  --card-bg: #ffffff;
+  --muted: #6c757d;
+  --primary: #0d6efd;
+  --nav-bg: #ffffff;
+  --overlay-bg: rgba(0,0,0,0.6);
+  --btn-border: rgba(0,0,0,0.08);
+  --live-color: #c40000; /* Brno red for light mode */
+  --nav-btn-bg: #ffffff;
+  --nav-btn-text: #000000;
+  --nav-btn-border: rgba(0,0,0,0.08);
+  /* Block header colors */
+  --presenter-bg: #000000;
+  --presenter-text: #ffffff;
+  --broadcast-bg: #000000;
+  --broadcast-text: #ffffff;
+  --header-font-family: inherit;
+  --header-font-size: 1rem;
+  --header-font-weight: 700;
+  --header-text: #000000; /* Live title text default (black) */
+}
+
+/* Dark theme variables */
+.dark, [data-theme="dark"] {
+  --bg: #0b0d10;
+  --text: #e6eef8;
+  --card-bg: #0f1720;
+  --muted: #9aa7b2;
+  --primary: #4f9dff;
+  --nav-bg: #06070a;
+  --overlay-bg: rgba(0,0,0,0.8);
+  --btn-border: rgba(255,255,255,0.08);
+  --live-color: #4f9dff; /* lighter accent in dark mode */
+  --nav-btn-bg: #0b0d10;
+  --nav-btn-text: #ffffff;
+  --nav-btn-border: rgba(255,255,255,0.08);
+  /* In dark mode, use black headers to match request */
+  --presenter-bg: #ffffff; /* header background white in dark mode */
+  --presenter-text: #000000; /* header text black in dark mode */
+  --broadcast-bg: #ffffff; /* header background white in dark mode */
+  --broadcast-text: #000000; /* header text black in dark mode */
+  --header-text: #000000;
+}
+
+/* Apply variables */
+html, body { background: var(--bg); color: var(--text); }
+body { transition: background-color .2s ease, color .2s ease; }
+
+.navbar { background-color: var(--nav-bg) !important; }
+.navbar .navbar-brand { color: var(--text); }
+
+.card { background-color: var(--card-bg); color: var(--text); border-color: rgba(0,0,0,0.06); }
+.card .card-header, .card .card-footer { background: transparent; }
+
+/* Live heading color */
+.live-title { color: var(--live-color); }
+
+/* Layout: sticky right sidebar and spacing adjustments for index */
+.sidebar { position: sticky; top: 1rem; }
+
+/* Floating quality control under the right corner of the video */
+.video-container { position: relative; display: flex; justify-content: center; align-items: center; }
+.quality-float {
+  position: absolute;
+  right: 12px;
+  top: calc(100% + 12px);
+  z-index: 3;
+  width: 170px;
+  display: flex;
+  justify-content: center;
+}
+
+.quality-float .quality-label {
+  color: var(--text);
+  font-weight: 600;
+  margin-right: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* Make the quality label button (Auto) have black outline and black text */
+#qualityLabelBtn {
+  color: #000000 !important;
+  border-color: #000000 !important;
+  background: transparent !important;
+}
+#qualityLabelBtn:hover, #qualityLabelBtn:focus {
+  color: #000000 !important;
+  border-color: #000000 !important;
+  background: rgba(0,0,0,0.04) !important;
+}
+
+/* Ensure floating control doesn't overlap other UI on small screens */
+@media (max-width: 992px) {
+  .quality-float { position: static; margin-top: .75rem; width: auto; }
+}
+
+.list-group-item { background: transparent; color: var(--text); border-color: rgba(0,0,0,0.06); }
+
+.alert { background: rgba(0,0,0,0.03); color: var(--text); }
+
+/* Offline overlay */
+#offlineOverlay { background-color: var(--overlay-bg); color: var(--text); }
+
+/* Buttons */
+.btn-outline-light { color: var(--text); border-color: var(--btn-border); }
+.btn-outline-light:hover, .btn-outline-light:focus { background: rgba(255,255,255,0.02); }
+
+.quality-btn.active { background-color: var(--primary); color: white; border-color: var(--primary); }
+
+/* Video.js player tweaks */
+.vjs-default-skin { color: var(--text); }
+
+/* Broadcast preview */
+.broadcast-preview { background: #000; }
+
+/* Grayscale switch: ensure visibility */
+.form-check-label { color: var(--text); }
+
+/* Small helpers */
+a { color: var(--primary); }
+
+/* Make sure modal-like elements remain visible */
+.card.shadow-sm { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+
+
+:root body { background: linear-gradient(180deg, #ffffff 0%, #f2f6fb 100%); }
+.dark body, [data-theme="dark"] body { background: linear-gradient(180deg, #071021 0%, #0b1020 100%); }
+.container, .navbar, .card, .video-container { position: relative; z-index: 1; }
+
+@media (max-width: 768px) {
+  :root:not(.dark) body::before, :root[data-theme="light"] body::before { opacity: 0.85; }
+}
+
+/* Aesthetic page-switch buttons used in the navbar */
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: .35rem .7rem;
+  border-radius: 6px;
+  border: 1px solid var(--nav-btn-border);
+  font-weight: 600;
+  color: var(--nav-btn-text);
+  background: var(--nav-btn-bg);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease, color .12s ease;
+  text-decoration: none;
+}
+
+.nav-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.12); text-decoration: none; }
+
+.nav-btn:active { transform: translateY(0); }
+
+/* Make adjacent nav buttons sit flush with no gap */
+.nav-btn + .nav-btn { margin-left: 0; }
+.nav-btn:not(:first-child) { border-left-width: 1px; }
+
+/* Light / dark-aware defaults */
+.nav-btn { color: var(--nav-btn-text); background: var(--nav-btn-bg); border-color: var(--nav-btn-border); }
+.dark .nav-btn, [data-theme="dark"] .nav-btn { color: var(--nav-btn-text); background: var(--nav-btn-bg); border-color: var(--nav-btn-border); }
+
+.nav-btn--primary {
+  background: linear-gradient(180deg, rgba(196,0,0,0.95), rgba(196,0,0,0.9));
+  color: #fff; box-shadow: 0 6px 20px rgba(196,0,0,0.12);
+}
+
+.nav-btn--active { box-shadow: 0 8px 26px rgba(0,0,0,0.16); transform: translateY(-2px); }
+
+/* Make navbar buttons slightly smaller on mobile */
+@media (max-width: 576px) {
+  .nav-btn { padding: .25rem .5rem; font-size: .9rem; }
+}
+
+/* Three-block dashboard layout for index page */
+.blocks {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+}
+.block {
+  flex: 1 1 0;
+  min-height: 300px;
+  transition: flex .35s ease, transform .25s ease, box-shadow .25s ease;
+  display: flex;
+  flex-direction: column;
+}
+.block .card { flex: 1 1 auto; display: flex; flex-direction: column; }
+.block.expanded { flex: 2.5 1 0; box-shadow: 0 12px 30px rgba(0,0,0,0.12); transform: translateY(-6px); }
+.block.minimized { flex: 0.7 1 0; opacity: .95; }
+
+@media (max-width: 992px) {
+  .blocks { flex-direction: column; }
+  .block { min-height: auto; }
+}
+
+/* Override block header colors using variables */
+#block-presenters .card-header { background: var(--presenter-bg) !important; color: var(--presenter-text) !important; }
+#block-broadcast .card-header { background: var(--broadcast-bg) !important; color: var(--broadcast-text) !important; }
+
+/* Also apply to player page's presenters card header (keeps selectors flexible) */
+.card-header.bg-primary { background-color: var(--presenter-bg) !important; color: var(--presenter-text) !important; }
+.card-header.bg-warning { background-color: var(--broadcast-bg) !important; color: var(--broadcast-text) !important; }
+
+/* Make client ID text white in dark mode for visibility */
+.dark #clientIdSpan, [data-theme="dark"] #clientIdSpan { color: #ffffff !important; }
+
+/* Unified header typography and Live title color */
+.card-header, .live-title {
+  font-family: var(--header-font-family);
+  font-size: var(--header-font-size);
+  font-weight: var(--header-font-weight);
+}
+.live-title { color: var(--header-text) !important; }
+
+/* Red live indicator next to Live Stream title; shown only when active */
+.live-indicator { display: inline-block; margin-right: .5rem; opacity: 0; transform: scale(0.9); transition: opacity .18s ease, transform .18s ease; }
+.live-indicator.active { opacity: 1; transform: scale(1); }
+
+/* ID label styling so its label can be white in dark mode */
+.id-label { color: var(--muted); font-weight: 600; }
+.dark .id-label, [data-theme="dark"] .id-label { color: #ffffff !important; }
+
+/* Broadcast block buttons: unified black buttons with white text */
+#block-broadcast .btn {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+  min-width: 100px;
+  padding: .35rem .7rem;
+  display: inline-block;
+}
+#block-broadcast .d-flex > .btn {
+  flex: 0 0 auto;
+  text-align: center;
+}
+#block-broadcast .btn-sm { font-size: .9rem; padding: .3rem .6rem; }
+#block-broadcast .btn:hover, #block-broadcast .btn:focus {
+  background: #111111 !important;
+  color: #ffffff !important;
+  border-color: #111111 !important;
+}
+#block-broadcast .btn:disabled {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+  opacity: 0.95;
+}
+
+/* Make Live Stream header match presenters header */
+#block-live .card-header { background: var(--presenter-bg) !important; color: var(--presenter-text) !important; }
+
+/* Center the live video player similar to broadcast preview */
+.video-container .video-js, .video-container video, .video-container .vjs-tech {
+  width: auto !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: 60vh !important;
+}
+
+/* Ensure Live Stream title text is white */
+#block-live .live-title { color: #ffffff !important; }

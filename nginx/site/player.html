@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MDS Stream Player</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <link href="css/style.css" rel="stylesheet">
+
+  <style>
+      .vjs-default-skin { color: white; }
+    
+            /* Overlay styles */
+            #offlineOverlay {
+                 position: absolute;
+        inset: 0;
+        background: linear-gradient(
+                135deg,
+                rgba(0, 0, 0, 0.95),
+                rgba(20, 20, 20, 0.95)
+        );
+        color: white;
+        z-index: 20;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        border-radius: 12px;
+        backdrop-filter: blur(6px);
+            }
+      
+      .loading-spinner {
+           border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top: 4px solid #0d6efd;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+    display: none;
+      }
+     @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+    .quality-btn {
+    transition: all 0.2s ease;
+}
+
+.quality-btn:hover {
+    transform: translateY(-1px);
+}
+
+.quality-btn.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.3);
+}
+  </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <div class="d-flex align-items-center">
+                <a href="index.html" id="navIndexBtn" class="nav-btn">Index</a>
+                <a href="player.html" id="navPlayerBtn" class="nav-btn">Player</a>
+            </div>
+            <div class="d-flex align-items-center">
+                <button id="themeToggle" class="btn btn-outline-light btn-sm" aria-pressed="false" title="Toggle theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-lg-9">
+                <div class="mb-2">
+                    <h3 class="mb-0">Live Stream (Grid)</h3>
+                </div>
+        
+        <div class="video-container position-relative mb-3">
+            <div id="offlineOverlay">
+                <div id="loadingSpinner" class="loading-spinner"></div>
+                <h3 id="overlayTitle">Stream is not active</h3>
+                <p id="overlayDesc">Waiting for presenters to connect...</p>
+            </div>
+
+            <video
+              id="videoPlayer"
+              class="video-js vjs-default-skin vjs-big-play-centered vjs-fluid"
+              controls
+              preload="auto">
+            </video>
+        </div>
+
+        <div class="card mb-3">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                <strong>Stream quality:</strong>
+                <div class="btn-group">
+                    <button id="qualityLabelBtn" type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Auto</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item active" href="#" data-quality-item data-mode="auto">Auto</a></li>
+                        <li><a class="dropdown-item" href="#" data-quality-item data-mode="_src">High (720p)</a></li>
+                        <li><a class="dropdown-item" href="#" data-quality-item data-mode="_mid">Medium (480p)</a></li>
+                        <li><a class="dropdown-item" href="#" data-quality-item data-mode="_low">Low (240p)</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+      </div>
+
+    <div id="presentersCol" class="col-lg-3">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                Currently streaming
+            </div>
+            <ul id="presentersList" class="list-group list-group-flush"></ul>
+            <div id="noPresentersMsg" class="card-body text-muted text-center" style="display: none;">
+                No one is streaming yet.
+            </div>
+        </div>
+        
+        <div class="mt-3 alert alert-info">
+                        <small>If the video stutters, try switching to a lower quality using the controls below the video.</small>
+        </div>
+      </div>
+    </div>
+
+<script>
+    // Align presenters column top to the video container top
+    (function alignPresenters(){
+        function update(){
+            const video = document.querySelector('.video-container');
+            const presenters = document.getElementById('presentersCol');
+            if (!video || !presenters) return;
+            const videoRect = video.getBoundingClientRect();
+            const presentersRect = presenters.getBoundingClientRect();
+            const diff = videoRect.top - presentersRect.top;
+            // Only apply positive shift (move presenters down); reset if negative
+            presenters.style.marginTop = (diff > 0 ? diff : 0) + 'px';
+        }
+        window.addEventListener('resize', () => { update(); });
+        // Run after load and a short timeout for layout stability
+        window.addEventListener('load', ()=>{ update(); setTimeout(update,300); });
+        // Also run immediately in case DOM is ready
+        update();
+    })();
+</script>
+  </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+
+  <script>
+    // 1. Initialize player
+    const player = videojs('videoPlayer', {
+      autoplay: 'muted',
+      controls: true,
+      fluid: true,
+      liveui: true
+    });
+
+    // Elementy
+    const offlineOverlay = document.getElementById('offlineOverlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayDesc = document.getElementById('overlayDesc');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const listEl = document.getElementById('presentersList');
+    const noMsgEl = document.getElementById('noPresentersMsg');
+
+    let isStreamActive = false; 
+    let checkFileInterval = null;
+    let currentMode = 'auto';
+
+    // 2. Change quality (dropdown support)
+    function changeQuality(mode) {
+        if (!isStreamActive) return; // don't change when nothing is playing
+        currentMode = mode;
+
+        const labelBtn = document.getElementById('qualityLabelBtn');
+        const labelMap = { 'auto': 'Auto', '_src': 'High (720p)', '_mid': 'Medium (480p)', '_low': 'Low (240p)' };
+        if (labelBtn) labelBtn.textContent = labelMap[mode] || mode;
+
+        document.querySelectorAll('[data-quality-item]').forEach(el => el.classList.remove('active'));
+        const activeItem = document.querySelector('[data-quality-item][data-mode="' + mode + '"]');
+        if (activeItem) activeItem.classList.add('active');
+
+        const newSource = (mode === 'auto') ? '/hls/stream.m3u8' : '/hls/stream' + mode + '/index.m3u8';
+        console.log('Switching quality to:', newSource);
+        player.src({ type: 'application/x-mpegURL', src: newSource });
+        player.play().catch(() => {});
+    }
+    window.changeQuality = changeQuality;
+
+    // 3. Waiting for file
+    async function waitForM3u8(url) {
+        setOverlayState("loading");
+        return new Promise((resolve) => {
+            if (checkFileInterval) clearInterval(checkFileInterval);
+            console.log("⏳ Checking for stream:", url);
+            
+            checkFileInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(url, { method: 'HEAD' });
+                    if (response.ok) {
+                        clearInterval(checkFileInterval);
+                        resolve(true);
+                    }
+                } catch (e) {}
+            }, 1000);
+        });
+    }
+
+    // 4. Overlay states
+    function setOverlayState(state) {
+        offlineOverlay.style.display = 'flex';
+        if (state === 'offline') {
+            loadingSpinner.style.display = 'none';
+            overlayTitle.innerText = "Stream is not active";
+            overlayDesc.innerText = "Waiting for presenters to connect...";
+        } else if (state === 'loading') {
+            loadingSpinner.style.display = 'block';
+            overlayTitle.innerText = "Preparing stream...";
+            overlayDesc.innerText = "The stream is being processed, one moment.";
+        }
+    }
+
+    // 5. Hlavní smyčka
+    async function fetchPresenters() {
+      try {
+        const res = await fetch('/api/presenters');
+        if (!res.ok) return;
+        const data = await res.json();
+        const currentlyBroadcasting = data.length > 0;
+
+
+        // Muted microphone icon (SVG)
+        const muteIconSvg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-mic-mute-fill text-danger ms-2" viewBox="0 0 16 16">
+                <path d="M13 8c0 .564-.094 1.107-.266 1.613l-.814-.814A4.02 4.02 0 0 0 12 8V7a.5.5 0 0 1 1 0v1.0zM8 0a5 5 0 0 0-5 5v1.869l.293.293A5 5 0 0 0 8 0zm0 13.5a5.5 5.5 0 0 1-5.465-4.995L.753 10.285a7 7 0 0 0 13.91 0l-1.783-1.783A5.5 5.5 0 0 1 8 13.5z"/>
+                <path d="M9 9.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5z"/>
+                <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z"/>
+                <path d="M10.15 13.614a6.955 6.955 0 0 0 2.21-2.062l-.84-.84a6.002 6.002 0 0 1-1.37 2.902zM1.646 2.354l.582.583A6.96 6.96 0 0 0 .753 8.715l1.783 1.783A5.466 5.466 0 0 1 3.293 7.169l1.636 1.636A4.015 4.015 0 0 0 8 12c1.074 0 2.05-.415 2.776-1.09l3.578 3.578a.5.5 0 0 0 .708-.708L2.354 1.646a.5.5 0 0 0-.708.708z"/>
+            </svg>`;
+
+        // Update list
+        listEl.innerHTML = '';
+        if (!currentlyBroadcasting) {
+          noMsgEl.style.display = 'block';
+        } else {
+          noMsgEl.style.display = 'none';
+          data.forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            
+            // If `isMuted` is true, add the icon
+            const muteHtml = p.isMuted ? muteIconSvg : '';
+            
+            li.innerHTML = `
+                <div>
+                    ${p.name}
+                    ${muteHtml}
+                </div>
+                <span class="badge bg-success rounded-pill">LIVE</span>
+            `;
+            listEl.appendChild(li);
+          });
+        }
+
+        // Logika Streamu
+        if (currentlyBroadcasting) {
+            if (!isStreamActive) {
+                isStreamActive = true; 
+                
+                // Always start on Auto quality
+                const targetSrc = '/hls/stream.m3u8';
+                // A) Waiting for file
+                await waitForM3u8(targetSrc);
+                
+                // B) Buffer 3s
+                console.log("⏳ Buffering pause 3s...");
+                await new Promise(r => setTimeout(r, 3000));
+
+                // C) Start
+                console.log("▶️ Starting:", targetSrc);
+                offlineOverlay.style.display = 'none';
+                
+                // Reset dropdown to Auto
+                document.querySelectorAll('[data-quality-item]').forEach(el => el.classList.remove('active'));
+                const first = document.querySelector('[data-quality-item][data-mode="auto"]'); if (first) first.classList.add('active');
+                const qbtn = document.getElementById('qualityLabelBtn'); if (qbtn) qbtn.innerText = 'Auto';
+
+                player.reset();
+                player.src({ type: 'application/x-mpegURL', src: targetSrc });
+                
+                const playPromise = player.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => console.log("Autoplay block."));
+                }
+            }
+        } else {
+            setOverlayState('offline');
+            if (isStreamActive) {
+                player.pause();
+                player.reset();
+                isStreamActive = false;
+                if (checkFileInterval) clearInterval(checkFileInterval);
+            }
+        }
+
+      } catch (e) {
+        console.error('API Error:', e);
+      }
+    }
+
+    // delegated handler for quality items (removed inline onclick)
+    document.addEventListener('click', (ev) => {
+        const t = ev.target.closest && ev.target.closest('[data-quality-item]');
+        if (!t) return;
+        ev.preventDefault();
+        changeQuality(t.dataset.mode);
+    });
+
+    setInterval(fetchPresenters, 2000);
+    fetchPresenters();
+  </script>
+</body>
+    <script>
+        (function(){
+            const THEME_KEY = 'mds_theme';
+            const btn = document.getElementById('themeToggle');
+            function applyTheme(t){
+                const dark = (t === 'dark');
+                document.documentElement.classList.toggle('dark', dark);
+                document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+                if (btn) { btn.innerText = dark ? '☀️' : '🌙'; btn.setAttribute('aria-pressed', dark); }
+            }
+            function loadTheme(){
+                const saved = localStorage.getItem(THEME_KEY);
+                if (saved) { applyTheme(saved); return; }
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                applyTheme(prefersDark ? 'dark' : 'light');
+            }
+            if (btn) btn.addEventListener('click', ()=>{
+                const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                const next = current === 'dark' ? 'light' : 'dark';
+                localStorage.setItem(THEME_KEY, next);
+                applyTheme(next);
+            });
+            loadTheme();
+
+            // set active nav button based on URL
+            try{
+                const path = window.location.pathname.split('/').pop();
+                const idx = document.getElementById('navIndexBtn');
+                const ply = document.getElementById('navPlayerBtn');
+                if (path === 'player.html') { if (ply) ply.classList.add('nav-btn--active'); }
+                else { if (idx) idx.classList.add('nav-btn--active'); }
+            }catch(e){}
+        })();
+    </script>
+</html>
